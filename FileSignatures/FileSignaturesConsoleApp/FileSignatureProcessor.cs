@@ -1,6 +1,7 @@
 ﻿using FileSignaturesConsoleApp.FileReaders;
 using FileSignaturesConsoleApp.Helpers;
 using FileSignaturesConsoleApp.Entities;
+using FileSignaturesConsoleApp.Loggers;
 
 namespace FileSignaturesConsoleApp
 {
@@ -8,8 +9,11 @@ namespace FileSignaturesConsoleApp
     {
         private readonly IHashGenerator _hashGenerator;
         private readonly IFileReader _fileReader;
+        private readonly IBufferedLogger _logger;
         private readonly Mutex _segmentsQueueMutex;
         private readonly Mutex _availableWorkerThreadsMutex;
+        private readonly int _maxQueueSize;
+        private readonly int _queueCoolDownMilliseconds;
 
         private CancellationTokenSource CanelationTokenSource { get; set; }
 
@@ -22,13 +26,16 @@ namespace FileSignaturesConsoleApp
         private bool FileIsRead { get; set; }
         private bool ProcessedSucessfully { get; set; }
 
-
-        public FileSignatureProcessor(IHashGenerator hashGenerator, IFileReader fileReader)
+        //TODO create Queue settings with queue size and coolDown
+        public FileSignatureProcessor(IHashGenerator hashGenerator, IFileReader fileReader, IBufferedLogger logger, int maxQueueSize = -1, int queueCoolDownMilliseconds = -1)
         {
             _hashGenerator = hashGenerator;
-            _fileReader = fileReader;            
+            _fileReader = fileReader;
             _segmentsQueueMutex = new Mutex(false);
-            _availableWorkerThreadsMutex = new Mutex(false);           
+            _availableWorkerThreadsMutex = new Mutex(false);
+            _logger = logger;
+            _maxQueueSize = maxQueueSize;
+            _queueCoolDownMilliseconds = queueCoolDownMilliseconds;
         }
 
         public bool ShowFileSignatures(int workerThreadsNumber)
@@ -46,7 +53,7 @@ namespace FileSignaturesConsoleApp
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Exception during reading the file!\nMessage:\"{ex.Message}\"\nStackTrace: {ex.StackTrace}");
+                    _logger.LogError($"Exception during reading the file!", ex);
                     this.CanelationTokenSource.Cancel();
                     this.ProcessedSucessfully = false;
                 }
@@ -54,12 +61,13 @@ namespace FileSignaturesConsoleApp
 
             readerThread.Priority = ThreadPriority.AboveNormal;
             readerThread.Start();
-            Console.WriteLine($"Thread {readerThread.ManagedThreadId} STARTED reading the file");
+            _logger.LogImportant($"Thread {readerThread.ManagedThreadId} STARTED reading the file");
             readerThread.Join();
             this.FileIsRead = true;
-            Console.WriteLine($"Thread {readerThread.ManagedThreadId} FINISHED reading the file");
+            _logger.LogImportant($"Thread {readerThread.ManagedThreadId} FINISHED reading the file");
             WaitHandle.WaitAll(finishedWorkEventHandles);
-            Console.WriteLine($"All worker threads HAVE FINISHED processing data");
+            _logger.WriteBufferedLogs();
+            _logger.LogImportant($"All worker threads HAVE FINISHED processing data");
             return this.ProcessedSucessfully;
         }
 
@@ -83,9 +91,9 @@ namespace FileSignaturesConsoleApp
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Exception during segment processing by work thread {Environment.CurrentManagedThreadId}!\nMessage:\"{ex.Message}\"\nStackTrace: {ex.StackTrace}");
-                        this.CanelationTokenSource.Cancel();                       
-                        this.ProcessedSucessfully = false;                      
+                        _logger.LogError($"Exception during segment processing by work thread {Environment.CurrentManagedThreadId}!", ex);
+                        this.CanelationTokenSource.Cancel();
+                        this.ProcessedSucessfully = false;
                     }
                     finally
                     {
@@ -116,19 +124,25 @@ namespace FileSignaturesConsoleApp
 
             //can't use if-else, bc of a possible dead lock
             _availableWorkerThreadsMutex.ReleaseMutex();
-
+            bool tooManyInTheQueue = false;
             if(!IsWorkerThreadAvailable)
             {
                 _segmentsQueueMutex.WaitOne();
                 this.SegmentsQueue.Enqueue(segment);
+                tooManyInTheQueue = _maxQueueSize > 0 && _maxQueueSize <= this.SegmentsQueue.Count;
                 _segmentsQueueMutex.ReleaseMutex();
-            }          
+            }
+
+            if (tooManyInTheQueue && _queueCoolDownMilliseconds > 0)
+            {
+                Thread.Sleep(_queueCoolDownMilliseconds);
+            }
         }
 
         private void DisplaySegmentHash()
         {
             var threadId = Thread.CurrentThread.ManagedThreadId;
-            Console.WriteLine($"Thread {threadId} STARTED working");
+            _logger.LogImportant($"Thread {threadId} STARTED working");
 
             var workerThread = GetWorkerThread(threadId);
             var cancelationToken = this.CanelationTokenSource.Token;
@@ -153,12 +167,11 @@ namespace FileSignaturesConsoleApp
 
                     workerThread.Segment = null;
                     var hash = _hashGenerator.GenerateHash(segment.Data);
-                    Console.WriteLine($"Thread: {threadId}, Segment: {segment.Id}, Hash: {Convert.ToHexString(hash)}");
+                    _logger.LogInfo($"Thread: {threadId}, Segment: {segment.Id}, Hash: {Convert.ToHexString(hash)}");
                     ScheduleWorkToCurrentThread();
                 }
             }
-
-            Console.WriteLine($"Thread {threadId} FINISHED working");
+            _logger.LogImportant($"Thread {threadId} FINISHED working");
         }
 
         private void ScheduleWorkToCurrentThread()
@@ -186,8 +199,8 @@ namespace FileSignaturesConsoleApp
                     _availableWorkerThreadsMutex.WaitOne();
                     this.AvailableWorkerThreads.Enqueue(Thread.CurrentThread);
                     _availableWorkerThreadsMutex.ReleaseMutex();
-                }              
-            }          
+                }
+            }
         }
 
         private void ScheduleWork(int threadId, Segment segment)
