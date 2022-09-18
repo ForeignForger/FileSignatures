@@ -12,8 +12,7 @@ namespace FileSignaturesConsoleApp
         private readonly IBufferedLogger _logger;
         private readonly Mutex _segmentsQueueMutex;
         private readonly Mutex _availableWorkerThreadsMutex;
-        private readonly int _maxQueueSize;
-        private readonly int _queueCoolDownMilliseconds;
+        private readonly QueueSettings _queueSettings;
 
         private CancellationTokenSource CanelationTokenSource { get; set; }
 
@@ -27,29 +26,33 @@ namespace FileSignaturesConsoleApp
         private bool ProcessedSucessfully { get; set; }
 
         //TODO create Queue settings with queue size and coolDown
-        public FileSignatureProcessor(IHashGenerator hashGenerator, IFileReader fileReader, IBufferedLogger logger, int maxQueueSize = -1, int queueCoolDownMilliseconds = -1)
+        public FileSignatureProcessor(IHashGenerator hashGenerator, IFileReader fileReader, IBufferedLogger logger, QueueSettings queueSettings)
         {
             _hashGenerator = hashGenerator;
             _fileReader = fileReader;
             _segmentsQueueMutex = new Mutex(false);
             _availableWorkerThreadsMutex = new Mutex(false);
             _logger = logger;
-            _maxQueueSize = maxQueueSize;
-            _queueCoolDownMilliseconds = queueCoolDownMilliseconds;
+            _queueSettings = queueSettings;
         }
 
-        public bool ShowFileSignatures(int workerThreadsNumber)
+        public bool ShowFileSignatures(int workerThreadsCount)
         {
             this.ProcessedSucessfully = true;
             this.SegmentsQueue = new Queue<Segment>();
             this.FileIsRead = false;
-            var finishedWorkEventHandles = StartWorkerThreads(workerThreadsNumber);
+            var finishedWorkEventHandles = StartWorkerThreads(workerThreadsCount);
 
             var readerThread = new Thread(() =>
             {
                 try
                 {
-                    _fileReader.Read(ProcessSegment, this.CanelationTokenSource.Token);
+                    var segments = _fileReader.Read(this.CanelationTokenSource.Token);
+
+                    foreach(var segment in segments)
+                    {
+                        ProcessSegment(segment);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -71,14 +74,14 @@ namespace FileSignaturesConsoleApp
             return this.ProcessedSucessfully;
         }
 
-        private EventWaitHandle[] StartWorkerThreads(int workerThreadsNumber)
+        private EventWaitHandle[] StartWorkerThreads(int workerThreadsCount)
         {
-            this.WorkerThreads = new Dictionary<int, WorkerThread>(workerThreadsNumber);
-            this.AvailableWorkerThreads = new Queue<Thread>(workerThreadsNumber);
+            this.WorkerThreads = new Dictionary<int, WorkerThread>(workerThreadsCount);
+            this.AvailableWorkerThreads = new Queue<Thread>(workerThreadsCount);
             this.CanelationTokenSource = new CancellationTokenSource();
-            var finishedWorkEventHandles = new EventWaitHandle[workerThreadsNumber];
+            var finishedWorkEventHandles = new EventWaitHandle[workerThreadsCount];
 
-            for (int i = 0; i < workerThreadsNumber; i++)
+            for (int i = 0; i < workerThreadsCount; i++)
             {
                 var finishedWorkEventHandle = new ManualResetEvent(false);
                 finishedWorkEventHandles[i] = finishedWorkEventHandle;
@@ -125,17 +128,18 @@ namespace FileSignaturesConsoleApp
             //can't use if-else, bc of a possible dead lock
             _availableWorkerThreadsMutex.ReleaseMutex();
             bool tooManyInTheQueue = false;
+
             if(!IsWorkerThreadAvailable)
             {
                 _segmentsQueueMutex.WaitOne();
                 this.SegmentsQueue.Enqueue(segment);
-                tooManyInTheQueue = _maxQueueSize > 0 && _maxQueueSize <= this.SegmentsQueue.Count;
+                tooManyInTheQueue = _queueSettings.MaxQueueSize > 0 && _queueSettings.MaxQueueSize <= this.SegmentsQueue.Count;
                 _segmentsQueueMutex.ReleaseMutex();
             }
 
-            if (tooManyInTheQueue && _queueCoolDownMilliseconds > 0)
+            if (tooManyInTheQueue && _queueSettings.CooldownTime > 0)
             {
-                Thread.Sleep(_queueCoolDownMilliseconds);
+                Thread.Sleep(_queueSettings.CooldownTime);
             }
         }
 
@@ -143,7 +147,6 @@ namespace FileSignaturesConsoleApp
         {
             var threadId = Thread.CurrentThread.ManagedThreadId;
             _logger.LogImportant($"Thread {threadId} STARTED working");
-
             var workerThread = GetWorkerThread(threadId);
             var cancelationToken = this.CanelationTokenSource.Token;
             var finished = false;
@@ -171,6 +174,7 @@ namespace FileSignaturesConsoleApp
                     ScheduleWorkToCurrentThread();
                 }
             }
+
             _logger.LogImportant($"Thread {threadId} FINISHED working");
         }
 

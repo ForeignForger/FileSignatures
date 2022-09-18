@@ -4,6 +4,6 @@ namespace FileSignaturesConsoleApp.FileReaders
 {
     public interface IFileReader
     {
-        void Read(Action<Segment> sendSegment, CancellationToken token);
+        IEnumerable<Segment> Read(CancellationToken token);
     }
 }

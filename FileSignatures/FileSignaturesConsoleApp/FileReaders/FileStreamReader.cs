@@ -13,7 +13,7 @@ namespace FileSignaturesConsoleApp.FileReaders
             _bufferSize = bufferSize;
         }
 
-        public void Read(Action<Segment> sendSegment, CancellationToken token)
+        public IEnumerable<Segment> Read(CancellationToken token)
         {
             if (!File.Exists(_path))
             {
@@ -31,7 +31,7 @@ namespace FileSignaturesConsoleApp.FileReaders
                         var bufferCopy = new byte[curSize];
                         Array.Copy(buffer, bufferCopy, curSize);
                         var segment = new Segment(bufferCopy, bufferIndex);
-                        sendSegment(segment);
+                        yield return segment;
                     }
                 }
             }

@@ -2,7 +2,7 @@
   "profiles": {
     "FileSignaturesConsoleApp": {
       "commandName": "Project",
-      "commandLineArgs": "\"D:\\torrents\\movies\\Harry Potter and prisoner of azkaban\\HarryCOPY4.mp4\" 500"
+      "commandLineArgs": "\"file.txt\" 50000 -1 1000 500000"
     }
   }
 }
