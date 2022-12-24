@@ -1,5 +1,5 @@
 <p>This is a console app.</p>
-<p>What does:
+<p>What it does:
   Splits file in segments, generates segmets' SHA256 hashes and outputs them into console.</p>
 
 **Console arguments:**
