@@ -1,6 +1,6 @@
 <p>This is a console app.</p>
-<p>What does it do:
-  Splits file in segments, generates segmets' SHA256 hashes and outputting them into console.</p>
+<p>What it does:
+  Splits file in segments, generates segmets' SHA256 hashes and outputs them into console.</p>
 
 **Console arguments:**
   - {File path to read}
