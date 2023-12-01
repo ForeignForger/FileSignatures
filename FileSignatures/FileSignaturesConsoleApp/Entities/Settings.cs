@@ -2,14 +2,23 @@
 {
     public class Settings
     {
-        public string FilePath { get; set; }
+        public String FilePath { get; set; }
 
-        public int SegmentSize { get; set; }
+        public Int32 SegmentSize { get; set; }
 
-        public int LogBufferSize { get; set; }
+        public Int32? LogBufferSize { get; set; }
 
-        public int WorkThreadsCount { get; set; }
+        public Int32 WorkThreadsCount { get; set; }
 
         public QueueSettings QueueSettings { get; set; }
+
+        public Boolean DoCountDown { get; set; }
+
+        public Settings() 
+        {
+            QueueSettings = new QueueSettings();
+            LogBufferSize = null;
+            DoCountDown = false;
+        }
     }
 }

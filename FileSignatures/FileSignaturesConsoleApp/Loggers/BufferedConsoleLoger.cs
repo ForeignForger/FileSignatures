@@ -2,28 +2,30 @@
 {
     public class BufferedConsoleLoger : IBufferedLogger
     {
-        private readonly int _bufferSize;
+        private const Int32 _defaultLogBufferSize = 1000;
 
-        private List<string> MessagesBuffer { get; set; }
+        private readonly Int32 _bufferSize;
 
-        public BufferedConsoleLoger(int bufferSize)
+        private List<String> MessagesBuffer { get; set; }
+
+        public BufferedConsoleLoger(Int32? bufferSize)
         {
-            MessagesBuffer = new List<string>(bufferSize);
-            _bufferSize = bufferSize;
+            _bufferSize = bufferSize ?? _defaultLogBufferSize;
+            MessagesBuffer = new List<String>(_bufferSize);
         }
 
-        public void LogError(string message, Exception? ex = null)
+        public void LogError(String message, Exception? ex = null)
         {
-            var errorMessage = ex is null ? string.Empty : $"Message: {ex.Message}\nStackTrace: {ex.StackTrace}";
+            String errorMessage = ex is null ? String.Empty : $"Message: {ex.Message}\nStackTrace: {ex.StackTrace}";
             Console.WriteLine($"Error: {message}\n{errorMessage}");
         }
 
-        public void LogImportant(string message)
+        public void LogImportant(String message)
         {
             Console.WriteLine($"{message}");
         }
 
-        public void LogInfo(string message)
+        public void LogInfo(String message)
         {
             lock (MessagesBuffer)
             {
@@ -42,8 +44,8 @@
             {
                 if (MessagesBuffer.Any())
                 {
-                    Console.WriteLine(string.Join('\n', MessagesBuffer));
-                    MessagesBuffer = new List<string>(_bufferSize);
+                    Console.WriteLine(String.Join('\n', MessagesBuffer));
+                    MessagesBuffer = new List<String>(_bufferSize);
                 }
             }
         }
