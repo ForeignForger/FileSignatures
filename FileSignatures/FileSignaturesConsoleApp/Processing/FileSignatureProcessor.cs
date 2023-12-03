@@ -33,18 +33,18 @@
 
         public bool ShowFileSignatures(int workerThreadsCount)
         {
-            this.ProcessedSucessfully = true;
-            this.SegmentsQueue = new Queue<Segment>();
-            this.FileIsRead = false;
+            ProcessedSucessfully = true;
+            SegmentsQueue = new Queue<Segment>();
+            FileIsRead = false;
             var finishedWorkEventHandles = StartWorkerThreads(workerThreadsCount);
 
             var readerThread = new Thread(() =>
             {
                 try
                 {
-                    var segments = _fileReader.Read(this.CanelationTokenSource.Token);
+                    var segments = _fileReader.Read(CanelationTokenSource.Token);
 
-                    foreach(var segment in segments)
+                    foreach (var segment in segments)
                     {
                         ProcessSegment(segment);
                     }
@@ -52,8 +52,8 @@
                 catch (Exception ex)
                 {
                     _logger.LogError($"Exception during reading the file!", ex);
-                    this.CanelationTokenSource.Cancel();
-                    this.ProcessedSucessfully = false;
+                    CanelationTokenSource.Cancel();
+                    ProcessedSucessfully = false;
                 }
             });
 
@@ -61,19 +61,19 @@
             readerThread.Start();
             _logger.LogImportant($"Thread {readerThread.ManagedThreadId} STARTED reading the file");
             readerThread.Join();
-            this.FileIsRead = true;
+            FileIsRead = true;
             _logger.LogImportant($"Thread {readerThread.ManagedThreadId} FINISHED reading the file");
             WaitHandle.WaitAll(finishedWorkEventHandles);
             _logger.WriteBufferedLogs();
             _logger.LogImportant($"All worker threads HAVE FINISHED processing data");
-            return this.ProcessedSucessfully;
+            return ProcessedSucessfully;
         }
 
         private EventWaitHandle[] StartWorkerThreads(int workerThreadsCount)
         {
-            this.WorkerThreads = new Dictionary<int, WorkerThread>(workerThreadsCount);
-            this.AvailableWorkerThreads = new Queue<Thread>(workerThreadsCount);
-            this.CanelationTokenSource = new CancellationTokenSource();
+            WorkerThreads = new Dictionary<int, WorkerThread>(workerThreadsCount);
+            AvailableWorkerThreads = new Queue<Thread>(workerThreadsCount);
+            CanelationTokenSource = new CancellationTokenSource();
             var finishedWorkEventHandles = new EventWaitHandle[workerThreadsCount];
 
             for (int i = 0; i < workerThreadsCount; i++)
@@ -90,8 +90,8 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"Exception during segment processing by work thread {Environment.CurrentManagedThreadId}!", ex);
-                        this.CanelationTokenSource.Cancel();
-                        this.ProcessedSucessfully = false;
+                        CanelationTokenSource.Cancel();
+                        ProcessedSucessfully = false;
                     }
                     finally
                     {
@@ -101,8 +101,8 @@
 
                 var ewh = new EventWaitHandle(false, EventResetMode.AutoReset);
                 var workerThread = new WorkerThread(thread, ewh);
-                this.WorkerThreads.Add(thread.ManagedThreadId, workerThread);
-                this.AvailableWorkerThreads.Enqueue(thread);
+                WorkerThreads.Add(thread.ManagedThreadId, workerThread);
+                AvailableWorkerThreads.Enqueue(thread);
                 thread.Start();
             }
 
@@ -112,11 +112,11 @@
         private void ProcessSegment(Segment segment)
         {
             _availableWorkerThreadsMutex.WaitOne();
-            var IsWorkerThreadAvailable = this.AvailableWorkerThreads.Any();
+            var IsWorkerThreadAvailable = AvailableWorkerThreads.Any();
 
             if (IsWorkerThreadAvailable)
             {
-                var availableThread = this.AvailableWorkerThreads.Dequeue();
+                var availableThread = AvailableWorkerThreads.Dequeue();
                 ScheduleWork(availableThread.ManagedThreadId, segment);
             }
 
@@ -124,11 +124,11 @@
             _availableWorkerThreadsMutex.ReleaseMutex();
             bool tooManyInTheQueue = false;
 
-            if(!IsWorkerThreadAvailable)
+            if (!IsWorkerThreadAvailable)
             {
                 _segmentsQueueMutex.WaitOne();
-                this.SegmentsQueue.Enqueue(segment);
-                tooManyInTheQueue = _queueSettings.MaxQueueSize > 0 && _queueSettings.MaxQueueSize <= this.SegmentsQueue.Count;
+                SegmentsQueue.Enqueue(segment);
+                tooManyInTheQueue = _queueSettings.MaxQueueSize > 0 && _queueSettings.MaxQueueSize <= SegmentsQueue.Count;
                 _segmentsQueueMutex.ReleaseMutex();
             }
 
@@ -143,7 +143,7 @@
             var threadId = Thread.CurrentThread.ManagedThreadId;
             _logger.LogImportant($"Thread {threadId} STARTED working");
             var workerThread = GetWorkerThread(threadId);
-            var cancelationToken = this.CanelationTokenSource.Token;
+            var cancelationToken = CanelationTokenSource.Token;
             var finished = false;
 
             while (!finished)
@@ -158,7 +158,7 @@
                 {
                     var segment = workerThread.Segment;
 
-                    if(segment == null)
+                    if (segment == null)
                     {
                         throw new InvalidOperationException("No segment has been set. Operation started before segment has been set");
                     }
@@ -176,11 +176,11 @@
         private void ScheduleWorkToCurrentThread()
         {
             _segmentsQueueMutex.WaitOne();
-            var queueIsEmpty = !this.SegmentsQueue.Any();
+            var queueIsEmpty = !SegmentsQueue.Any();
 
             if (!queueIsEmpty)
             {
-                var segment = this.SegmentsQueue.Dequeue();
+                var segment = SegmentsQueue.Dequeue();
                 ScheduleWork(Environment.CurrentManagedThreadId, segment);
             }
 
@@ -189,14 +189,14 @@
 
             if (queueIsEmpty)
             {
-                if (this.FileIsRead)
+                if (FileIsRead)
                 {
-                    this.CanelationTokenSource.Cancel();
+                    CanelationTokenSource.Cancel();
                 }
                 else
                 {
                     _availableWorkerThreadsMutex.WaitOne();
-                    this.AvailableWorkerThreads.Enqueue(Thread.CurrentThread);
+                    AvailableWorkerThreads.Enqueue(Thread.CurrentThread);
                     _availableWorkerThreadsMutex.ReleaseMutex();
                 }
             }
@@ -211,12 +211,12 @@
 
         private WorkerThread GetWorkerThread(int threadId)
         {
-            if (!this.WorkerThreads.ContainsKey(threadId))
+            if (!WorkerThreads.ContainsKey(threadId))
             {
                 throw new InvalidOperationException($"Unexpected thread Id: {threadId}, Name: {Thread.CurrentThread.Name}. Only registered worker threads are allowed!");
             }
 
-            var workerThread = this.WorkerThreads[threadId];
+            var workerThread = WorkerThreads[threadId];
             return workerThread;
         }
     }

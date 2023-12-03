@@ -9,9 +9,9 @@
         public Segment? Segment { get; set; }
 
         public WorkerThread(Thread thread, EventWaitHandle eventWaitHandle)
-        {      
-            this.Thread = thread;
-            this.EventWaitHandle = eventWaitHandle;
+        {
+            Thread = thread;
+            EventWaitHandle = eventWaitHandle;
         }
     }
 }

@@ -19,11 +19,11 @@
             }
             else
             {
-                using(var fsReader = File.OpenRead(_path))
+                using (var fsReader = File.OpenRead(_path))
                 {
                     var buffer = new byte[_bufferSize];
-                    
-                    for(int bufferIndex = 0, curSize; (curSize = fsReader.Read(buffer, 0, _bufferSize)) > 0; bufferIndex++)
+
+                    for (int bufferIndex = 0, curSize; (curSize = fsReader.Read(buffer, 0, _bufferSize)) > 0; bufferIndex++)
                     {
                         token.ThrowIfCancellationRequested();
                         var bufferCopy = new byte[curSize];
