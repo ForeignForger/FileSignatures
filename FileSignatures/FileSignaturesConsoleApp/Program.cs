@@ -1,8 +1,4 @@
-﻿using FileSignaturesConsoleApp.Entities;
-using FileSignaturesConsoleApp.FileReaders;
-using FileSignaturesConsoleApp.Helpers;
-using FileSignaturesConsoleApp.Loggers;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace FileSignaturesConsoleApp
 {

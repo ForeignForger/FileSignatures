@@ -1,9 +1,4 @@
-﻿using FileSignaturesConsoleApp.FileReaders;
-using FileSignaturesConsoleApp.Helpers;
-using FileSignaturesConsoleApp.Entities;
-using FileSignaturesConsoleApp.Loggers;
-
-namespace FileSignaturesConsoleApp
+﻿namespace FileSignaturesConsoleApp
 {
     public class FileSignatureProcessor
     {

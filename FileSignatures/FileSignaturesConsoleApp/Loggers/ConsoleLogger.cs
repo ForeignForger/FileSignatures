@@ -1,4 +1,4 @@
-﻿namespace FileSignaturesConsoleApp.Loggers
+﻿namespace FileSignaturesConsoleApp
 {
     public class ConsoleLogger: ILogger
     {

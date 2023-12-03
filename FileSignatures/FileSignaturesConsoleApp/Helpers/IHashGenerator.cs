@@ -1,4 +1,4 @@
-﻿namespace FileSignaturesConsoleApp.Helpers
+﻿namespace FileSignaturesConsoleApp
 {
     public interface IHashGenerator
     {

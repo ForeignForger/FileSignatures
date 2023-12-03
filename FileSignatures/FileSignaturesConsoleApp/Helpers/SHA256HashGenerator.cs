@@ -1,6 +1,6 @@
 ﻿using System.Security.Cryptography;
 
-namespace FileSignaturesConsoleApp.Helpers
+namespace FileSignaturesConsoleApp
 {
     //Note: tried using IDisposable but ComputeHash() throws error after a while. 
     public class SHA256HashGenerator : IHashGenerator

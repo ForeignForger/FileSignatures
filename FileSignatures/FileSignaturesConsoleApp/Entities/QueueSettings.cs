@@ -1,4 +1,4 @@
-﻿namespace FileSignaturesConsoleApp.Entities
+﻿namespace FileSignaturesConsoleApp
 {
     /// <summary>
     /// Settings for FileSignatureProcessor queue

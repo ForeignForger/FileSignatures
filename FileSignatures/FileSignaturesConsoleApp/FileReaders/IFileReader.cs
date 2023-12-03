@@ -1,6 +1,4 @@
-﻿using FileSignaturesConsoleApp.Entities;
-
-namespace FileSignaturesConsoleApp.FileReaders
+﻿namespace FileSignaturesConsoleApp
 {
     public interface IFileReader
     {
